@@ -1,28 +1,76 @@
 <template>
   <div class="app">
-    <h1 v-html="this.question"></h1>
+    <ScoreBoardVue :lose="this.loseCount" :win="this.winCount"/>
+    <template v-if="this.question">
+      <h1 v-html="this.question"></h1>
+      <template v-for="(answer, index) in this.answers" :key="index">
+        <input :disabled="this.answerSubmitted" type="radio" name="options" :value="answer" v-model="this.chosenAnswer">
+        <label v-html="answer"></label><br>
+      </template>
 
-    <template v-for="(answer, index) in this.answers" :key="index">
-      <input type="radio" name="options" :value="answers">
-      <label v-html="answer"></label><br>
+      <button v-if="!answerSubmitted" class="send" type="button" @click="sendAnswer">Send</button>
+
+      <section v-if="answerSubmitted" class="results">
+        <h4 v-if="this.incorrectAnswers.includes(this.chosenAnswer)">&#10060; Too bad, wrong answer. The correct is <span
+            v-html="correctAnswers"></span></h4>
+
+        <h4 v-else>
+          &#9989; Congratulations, correct answer. <span v-html="correctAnswers"></span> is correct!
+        </h4>
+        <button @click="this.getNewQuestion()" class="send" type="button">Next question</button>
+      </section>
     </template>
-
-    <button class="send" type="button">Send</button>
   </div>
 </template>
 
 <script>
+import ScoreBoardVue from './components/ScoreBoard.vue'
 import http from './services/api'
 
 export default {
+
+  components: {
+    ScoreBoardVue
+  },
   data() {
     return {
-      question: '',
-      incorrectAnswers: [],
-      correctAnswers: [],
+      question: undefined,
+      incorrectAnswers: undefined,
+      correctAnswers: undefined,
+      chosenAnswer: undefined,
+      answerSubmitted: false,
+      winCount: 0,
+      loseCount: 0
     }
   },
+  methods: {
+    sendAnswer() {
+      if (!this.chosenAnswer) {
+        alert('Choose one of the options')
+      }
+      else {
+        this.answerSubmitted = true;
+        if (this.chosenAnswer == this.correctAnswers) {
+          this.winCount++;
+        } else{
+          this.loseCount++
+        }
+      }
+    },
 
+    getNewQuestion() {
+      this.answerSubmitted = false;
+      this.chosenAnswer = undefined
+      this.question = undefined
+
+      http.get("https://opentdb.com/api.php?amount=1").then((response) => {
+        this.question = response.data.results[0].question;
+        this.incorrectAnswers = response.data.results[0].incorrect_answers;
+        this.correctAnswers = response.data.results[0].correct_answer;
+
+      })
+    }
+  },
   computed: {
     answers() {
       var answers = JSON.parse(JSON.stringify(this.incorrectAnswers));
@@ -32,12 +80,7 @@ export default {
   },
 
   created() {
-    http.get("https://opentdb.com/api.php?amount=1").then((response) => {
-      this.question = response.data.results[0].question;
-      this.incorrectAnswers = response.data.results[0].incorrect_answers;
-      this.correctAnswers = response.data.results[0].correct_answer;
-
-    })
+    this.getNewQuestion();
   }
 }
 </script>
